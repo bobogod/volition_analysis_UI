@@ -1,18 +1,12 @@
-function [allData,Behavior,Meta,Video,Online,Offline,ST]=mergeButton(path,args)
-%   mergeButton by bo, 20220417
+function [allData,Behavior,Meta,Video,Online,Offline,ST]=mergeButton_openephys(path,args,OtherInformation)
+%   mergeButton by bo, 20220830
 %   2 input arguments
 %   path: path of session data folder
 %   args:     [event,online,offline,SU/MU,analog,video]
 clear dir
+openephys_data=load_open_ephys(path); %no continuous data on PC
 f=dir([path,'ST*_*.mat']);  rulepath=[path, f.name];
-f=dir([path,'*.nev']);  nevpath=[path, f.name];
-f=dir([path,'*.ns2']);  ns2path=[path, f.name];
-f=dir([path,'*.ns4']);  ns4path=[path, f.name];
-
 Rule=load(rulepath);
-nev=openNEV(nevpath,'read','8bits','nomat','overwrite');
-nsx=openNSx(ns2path,'read','uV');
-ns4=openNSx(ns4path,'read','uV');
 
 
 Data=struct();
@@ -33,59 +27,53 @@ if args{1}
         Data.Meta.Rule.Train.IRtime=Rule.savedata.ruleconfig.IRtime;
     end
     
-    Data.Meta.Nev=nev.MetaTags;
+    Data.Meta.Nev=openephys_data.continuous.Header;
+    Data.Meta.Nev.DataDurationSec=length(openephys_data.continuous.Timestamps)/openephys_data.continuous.Header.sample_rate;
 
+    Data.Meta.Other=OtherInformation;
+    
     if contains(rulepath,'ST3')
         ST='ST3';
-        [Data.Behavior.Labels,Data.Behavior.EventTimings,Data.Behavior.EventMarkers]=st3_parse_eventdata_20210702(nev.Data.SerialDigitalIO.TimeStampSec,nev.Data.SerialDigitalIO.UnparsedData);
+%         [Data.Behavior.Labels,Data.Behavior.EventTimings,Data.Behavior.EventMarkers]=st3_parse_eventdata_20210702(nev.Data.SerialDigitalIO.TimeStampSec,nev.Data.SerialDigitalIO.UnparsedData);
+        [Data.Behavior.Labels,Data.Behavior.EventTimings,Data.Behavior.EventMarkers]=st3_parse_eventdata_openephys(openephys_data.event.Timestamps,openephys_data.event.Data);
     else
         ST='ST4';
-        [Data.Behavior.Labels,Data.Behavior.EventTimings,Data.Behavior.EventMarkers]=st4_parse_eventdata_20210702(nev.Data.SerialDigitalIO.TimeStampSec,nev.Data.SerialDigitalIO.UnparsedData);
+        [Data.Behavior.Labels,Data.Behavior.EventTimings,Data.Behavior.EventMarkers]=st4_parse_eventdata_openephys(openephys_data.event.Timestamps,openephys_data.event.Data);
     end
     Data.Behavior.EventTimings=Data.Behavior.EventTimings*1000; %ms
     Data.Behavior.LabelMarkers=1:length(Data.Behavior.Labels);
     
-    Data.Behavior.RuleEvents=Rule.savedata.ruledata.rule1;
+    Data.Behavior.RuleEvents={};%Rule.savedata.ruledata.rule1;
 end
 
 %% analog data
 if args{5}
-    %position
-    t=cell2mat({nsx.ElectrodesInfo.ElectrodeID});
-    tt=find(t==98);
-    if isempty(tt)
-        t=cell2mat({ns4.ElectrodesInfo.ElectrodeID});
-        tt=find(t==98);
-        Data.Behavior.Position=movmean(ns4.Data(tt,:),100); %100ms smooth
-    else
-        Data.Behavior.Position=movmean(nsx.Data(tt,:),100); %100ms smooth
-    end
-    if length(Data.Behavior.Position)>10000000; Data.Behavior.Position=Data.Behavior.Position(11:10:end); end
-  
+    % position
+    Data.Behavior.Position=movmean(openephys_data.continuous.Data(4,:),300); %100ms smooth
+    if length(Data.Behavior.Position)>10000000; Data.Behavior.Position=Data.Behavior.Position(1:30:end); end
+    
     %weight
-    t=cell2mat({ns4.ElectrodesInfo.ElectrodeID});
-    tt=find(t==99);
-    t=ns4.Data(tt,:);
-    t=movmean(t,100);
-    Data.Behavior.Weight=t(11:10:end); %10ms smooth
+    t=openephys_data.continuous.Data(5,:);
+    t=movmean(t,300);
+    Data.Behavior.Weight=t(1:30:end); %10ms smooth
 end
 
 %% online data
 if args{2}
+    t0=openephys_data.continuous.Timestamps(1);
     Data.UnitsOnline.Definition=["channel id","unit id","offline index"];
     Data.UnitsOnline.SpikeNotes=[];
     Data.UnitsOnline.SpikeTimes={};
     Data.UnitsOnline.SpikeWaves={};
     
-    for channelt=1:max(nev.Data.Spikes.Electrode)
-        for unitt=1:max(nev.Data.Spikes.Unit)
-            t=nev.Data.Spikes.TimeStamp(nev.Data.Spikes.Electrode==channelt & nev.Data.Spikes.Unit==unitt);
-            tt=nev.Data.Spikes.Waveform(:,nev.Data.Spikes.Electrode==channelt & nev.Data.Spikes.Unit==unitt);
-            if ~isempty(t)
-                Data.UnitsOnline.SpikeNotes=[Data.UnitsOnline.SpikeNotes; channelt, unitt, 0];
-                Data.UnitsOnline.SpikeTimes{end+1}=double(t)/nev.MetaTags.TimeRes*1000; %ms
-                Data.UnitsOnline.SpikeWaves{end+1}=tt;
-            end
+    for channelt=1:length(openephys_data.spike.SortedIndexes)
+        t=unique(openephys_data.spike.SortedIndexes{channelt});
+        for unitt=1:length(t)
+            tt=openephys_data.spike.Timestamps{channelt}(openephys_data.spike.SortedIndexes{channelt}==t(unitt));
+            ttt=openephys_data.spike.Waveforms{channelt}(openephys_data.spike.SortedIndexes{channelt}==t(unitt),:);
+            Data.UnitsOnline.SpikeNotes=[Data.UnitsOnline.SpikeNotes; channelt, t(unitt), 0];
+            Data.UnitsOnline.SpikeTimes{end+1}=tt*1000; %ms
+            Data.UnitsOnline.SpikeWaves{end+1}=ttt;
         end
     end
 end
@@ -115,10 +103,11 @@ if args{3}
         load([path FileName]);
         for cluster=0:max(cluster_class(:,1))
             tspikes=(cluster_class(cluster_class(:,1)==cluster,2))';
-            t=tspikes(tspikes<nev.MetaTags.DataDurationSec*1000);
+%             t=tspikes(tspikes<nev.MetaTags.DataDurationSec*1000);
+            t=tspikes(tspikes<openephys_data.spike.Timestamps{channelt}(end)*1000);
             tt=spikes(cluster_class(:,1)==cluster,:);
             Data.UnitsOffline.SpikeNotes=[Data.UnitsOffline.SpikeNotes; channelt, cluster, 0, 0];
-            Data.UnitsOffline.SpikeTimes{end+1}=t;
+            Data.UnitsOffline.SpikeTimes{end+1}=t+t0;
             Data.UnitsOffline.SpikeWaves{end+1}=tt;
         end
     end
@@ -140,11 +129,11 @@ if args{3} && args{2}
     cross_corr_onoff=NaN(length(Data.UnitsOffline.SpikeNotes),length(t_online));
     for i=1:length(Data.UnitsOffline.SpikeNotes)
         for j=1:length(t_online)
-            if Data.UnitsOffline.SpikeNotes(i,1)==Data.UnitsOnline.SpikeNotes(t_online(j),1) && Data.UnitsOffline.SpikeNotes(i,2)~=0
+            if Data.UnitsOffline.SpikeNotes(i,1)==Data.UnitsOnline.SpikeNotes(t_online(j),1) && Data.UnitsOffline.SpikeNotes(i,2)~=0 && Data.UnitsOnline.SpikeNotes(t_online(j),2)~=0
                 %calc p(a in b)
                 online_spikes_t=Data.UnitsOnline.SpikeTimes{t_online(j)};
                 offline_spikes_t=Data.UnitsOffline.SpikeTimes{i};
-                if length(offline_spikes_t)>100000 && length(offline_spikes_t)>3*length(online_spikes_t) %speed up
+                if length(offline_spikes_t)/range(offline_spikes_t)*1000>40 || length(offline_spikes_t)>3*length(online_spikes_t) %speed up
                     cross_corr_onoff(i,j)=0;
                 else
                     tt1=tic;
@@ -166,6 +155,10 @@ if args{3} && args{2}
                     p_on_in_off=count_same/length(online_spikes_t);
                     cross_corr_onoff(i,j)=p_on_in_off*p_off_in_on;
                     toc(tt1)
+                end
+                if length(offline_spikes_t)/range(offline_spikes_t)*1000>30 && cross_corr_onoff(i,j)<0.5 
+                    %some fast-spiking neurons may be missed
+                    cross_corr_onoff(i,j)=0;
                 end
                 %             cross_corr_onoff(i,j)=xcorr(Data.UnitsOffline.SpikeTimes{i},Data.UnitsOnline.SpikeTimes{t_online(j)},0);
             end

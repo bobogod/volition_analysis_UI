@@ -32,9 +32,9 @@ for i=1:length(units(:,1))
 %     index_u
     if index_u
         offline_spikes_t=Data.UnitsOffline.SpikeTimes{index_u}; 
-        mean_firing_rate=length(offline_spikes_t)/Data.Meta.Nev.DataDurationSec;
+        mean_firing_rate=length(offline_spikes_t)/offline_spikes_t(end)*1000;
     end
-    if index_u % && mean_firing_rate<30        
+    if index_u && mean_firing_rate<40        
         %% plot waveform
         axes(ha(i*4-3));hold on
         
@@ -69,9 +69,9 @@ for i=1:length(units(:,1))
         axis off
         xlim([0 64])
         text(0,0,{['CH',num2str(CHANNEL),'U',num2str(UNIT)],num2str(mean_firing_rate)},'HorizontalAlignment','right','FontSize',6.5)
-        line([2,2],[-800 -400],'Color','k','LineWidth',1);
-        text(3,-600,'100μv','HorizontalAlignment','left','FontSize',6);
-        set (gca, 'ylim', [-1600 800])
+        line([2,2],[-1200 -800],'Color','k','LineWidth',1);
+        text(3,-1000,'100μv','HorizontalAlignment','left','FontSize',6);
+        set (gca, 'ylim', [-2000 800])
         
         
         %% plot autocorrelation, 1ms bin
@@ -98,7 +98,7 @@ for i=1:length(units(:,1))
         hbar_off = bar(lags, c);
         set(hbar_off, 'facecolor', color_select(1,:),'FaceAlpha',0.5,'EdgeAlpha',0)
         if i==len;  xlabel('Lag(ms)'); set(gca,'xtickLabelMode','auto'); end
-        if i==1; title(Data.Meta.Nev.DateTime(1:11)); end
+        if i==1; title(session); end
         
         %online                
         [c, lags] = xcorr(kutime2_on, 25); % max lag 25 ms
@@ -199,10 +199,11 @@ legend([hb1,hb2],{'offline','online'},'Location','west','Orientation','horizonta
 axes(ha(len*4+2)); axis off;
 axes(ha(len*4+3)); axis off;
 axes(ha(len*4+4)); axis off;
-supt=suptitle(Data.Meta.Nev.DateTime(1:11));
+supt=suptitle(session);
 set(supt,'FontSize',10)
 
 savefig(f,[pwd '\FIGS\s_unit_property\' animal '-' session])
+saveas(f,[pwd '\FIGS\s_unit_property\' animal '-' session '.png'])
 pause(5)
 close(f)
 end

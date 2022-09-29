@@ -1,11 +1,5 @@
 function m_neuron_weight(animal,DataPaths)
 %% initialization
-Data=load(DataPaths{1}).Data;
-positives=[Data.Meta.Rule.Channels(2) Data.Meta.Rule.Units(2)-2];
-negatives=[Data.Meta.Rule.Channels(6) Data.Meta.Rule.Units(6)-2];
-others=[];
-
-units=[positives;negatives;others]
 OFFLINE=1;
 align_tags={'TRIALSTART','HITTARGET'};
 colors=viridis(length(DataPaths));
@@ -20,6 +14,11 @@ pos_firing=neg_firing;
 for index=1:length(DataPaths)
     disp([num2str(index) ' started'])
     Data=load(DataPaths{index}).Data;
+    positives=[Data.Meta.Rule.Channels(2) Data.Meta.Rule.Units(2)-2];
+    negatives=[Data.Meta.Rule.Channels(6) Data.Meta.Rule.Units(6)-2];
+    others=[];
+    units=[positives;negatives;others]
+    
     position=Data.Behavior.Position;
     totaltime=Data.Meta.Nev.DataDurationSec;
     x=1:1:totaltime*1000-1;

@@ -5,8 +5,8 @@ if ~exist([PathName 'video_clips'],'dir')
 end
 
 %% initialize spike data
-positives=[Data.Meta.Rule.Channels(2) Data.Meta.Rule.Units(2)-2]; 
-negatives=[Data.Meta.Rule.Channels(6) Data.Meta.Rule.Units(6)-2]; 
+positives=[Data.Meta.Rule.Channels(2) Data.Meta.Rule.Units(2)]; 
+negatives=[Data.Meta.Rule.Channels(6) Data.Meta.Rule.Units(6)]; 
 others=[];
 for i=1:length(Data.UnitsOnline.SpikeNotes(:,1))
     if Data.UnitsOnline.SpikeNotes(i,3)>0
@@ -18,7 +18,7 @@ for i=1:length(Data.UnitsOnline.SpikeNotes(:,1))
     end
 end
 units=[positives;negatives;others];
-OFFLINE=1
+OFFLINE=0
 LEFT=-2000; RIGHT=2000; %display baseline-2s~hit+2s data
 
 
@@ -52,6 +52,9 @@ LEDInB=Data.Behavior.EventTimings(Data.Behavior.EventMarkers==find(Data.Behavior
 
 %% get data
 [timestamp_trialstart,timestamp_hittarget,timestamp_baselinestart,timestamp_portready,timestamp_portback,grading] = get_timestamps_new(Data);
+timestamp_trialstart=timestamp_trialstart';
+timestamp_baselinestart=timestamp_baselinestart';
+grading=timestamp_hittarget>0;
 timestamp_trialstart=timestamp_trialstart(grading);
 timestamp_hittarget=timestamp_hittarget(grading);
 timestamp_baselinestart=timestamp_baselinestart(grading);
@@ -214,7 +217,8 @@ for tcount=1:length(timestamp_hittarget)
             %% spikes
              for iii=1:length(units(:,1))
                  spikes=Data.UnitsOnline;
-                 index_u=find(spikes.SpikeNotes(:,1)==units(iii,1) & spikes.SpikeNotes(:,2)==units(iii,2));
+%                  index_u=find(spikes.SpikeNotes(:,1)==units(iii,1) & spikes.SpikeNotes(:,2)==units(iii,2));
+                 index_u=find(spikes.SpikeNotes(:,2)==units(iii,2)); %open-ephys
                  if OFFLINE
                      index_u=spikes.SpikeNotes(index_u,3);
                      spikes=Data.UnitsOffline;
@@ -227,7 +231,7 @@ for tcount=1:length(timestamp_hittarget)
                  else; c='k'; end %colors(iii-length(positives(:,1))-length(negatives(:,1)),:); end
                  
                  if ~isempty(tspikes)
-                     xx = [tspikes; tspikes]-timestamp_baselinestart(tcount);
+                     xx = [tspikes'; tspikes']-timestamp_baselinestart(tcount);
                      yy =[1+2/length(units(:,1))*(length(units(:,1))-iii)+0.1; 1+2/length(units(:,1))*(length(units(:,1))-iii+1)-0.1]-0.5-0.1;
                      plot(ha3,xx, yy, 'color',c, 'linewidth', 0.5)
                  end

@@ -1,6 +1,6 @@
 function [timestamp_trialstart,timestamp_hittarget,timestamp_portready,timestamp_portback] = get_timestamps_st3(Data)
 t=find(Data.Behavior.Labels=="TrialStart")
-timestamp_trialstart=Data.Behavior.EventTimings(Data.Behavior.EventMarkers==t);
+timestamp_trialstart=Data.Behavior.EventTimings(Data.Behavior.EventMarkers==t)';
 
 timestamp_hittarget=zeros(1,length(timestamp_trialstart));
 timestamp_portready=zeros(1,length(timestamp_trialstart));

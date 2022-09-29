@@ -62,13 +62,12 @@ set(gca,'XTickLabel',dates)
 ylabel('success rate')
 set(gca,'XTickLabelRotation',45)
 switch_unit=scatter(gca,change_unit,0.96*ones(1,length(change_unit)),'kv','filled');
-legend(switch_unit,'change unit','box','off')
 
 % 
-line(gca,[10.5,10.5],[0.5,1],'color','k','linestyle','--')
-line(gca,[12.5,12.5],[0.5,1],'color','k','linestyle','--')
-line(gca,[15.5,15.5],[0.5,1],'color','k','linestyle','--')
-line(gca,[18.5,18.5],[0.5,1],'color','k','linestyle','--')
+% line(gca,[6.5,6.5],[0,1],'color','k','linestyle','--')
+% line(gca,[14.5,14.5],[0,1],'color','k','linestyle','--')
+% line(gca,[15.5,15.5],[0,1],'color','k','linestyle','--')
+% line(gca,[18.5,18.5],[0,1],'color','k','linestyle','--')
 % scatter(gca,6.5,0.96,'kv','filled')
 % scatter(gca,9.5,0.96,'kv','filled')
 % scatter(gca,13.5,0.96,'kv','filled')
@@ -81,9 +80,9 @@ line(gca,[18.5,18.5],[0.5,1],'color','k','linestyle','--')
 % text(6,0.65,["load cell";"max"],'FontSize',12)
 % text(11.3,0.65,'st3','FontSize',12,'Color','b')
 
+legend(switch_unit,'change unit','box','off')
 
-
-title(f,[animal ' (warm up data removed)'],'FontSize',12)
+title([animal ' (warm up data removed)'],'FontSize',12)
 savefig(f,[pwd '\FIGS\m_success_rate_all\' animal '-' dates{1} '-' dates{end}])
 end
 
